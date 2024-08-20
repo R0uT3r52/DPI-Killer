@@ -1,8 +1,12 @@
-import 'dart:io';
 import 'src/gdpi_config/config.dart' as cfg;
 import 'widgets/settings.dart';
+import 'widgets/utils.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:flutter/material.dart';
+
+
+gDPI_controller controller = gDPI_controller();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +28,34 @@ void main() async {
   });
   
   runApp(const MyApp());
+  await setupTray();
 }
+
+Future<void> setupTray() async {
+  final trayManager = TrayManager.instance;
+
+  await trayManager.setIcon('assets/ryodan.ico');
+
+  final menu = Menu(items: [
+    MenuItem(key: "show", label: 'Show', onClick: (menuItem) async {
+      await windowManager.show();
+      await windowManager.focus();
+    }),
+    // MenuItem.separator(),
+    // MenuItem.checkbox(key: "enable", label: "Disabled", checked: isRunning,),
+    MenuItem.separator(),
+    MenuItem(key: "exit", label: 'Close'),
+  ]);
+
+  await trayManager.setContextMenu(menu);
+
+  // Регистрация слушателя событий трея
+  trayManager.addListener(TrayController());
+
+  // Скрытие окна при сворачивании
+  windowManager.addListener(WindowController());
+}
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -52,8 +83,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool _isRunning = false;
-  Process? _process;
+  //Process? _process;
   String text = "OFF";
   @override
   Widget build(BuildContext context) {
@@ -68,52 +98,19 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             SwitchListTile(
                 title: Text(text),
-                value: _isRunning,
+                value: isRunning,
                 onChanged: (bool value) async {
                   setState(() {
-                    _isRunning = value;
+                    isRunning = value;
                   });
 
-                  if (_isRunning) {
-                    List<String> args = [];
-
-                    for (int i = 0; i < cfg.settings_as_arg.length; i++) {
-                      if (cfg.settings_as_arg[i][2]) {
-                        args.add(cfg.settings_as_arg[i][1]);
-                      }
-                    }
-                    //caluclate path
-                    final exeDir = File(Platform.resolvedExecutable).parent;
-                    final blacklistPath = "${exeDir.path}\\goodbyedpi\\russia-youtube.txt";
-                    final dpiPath = "${exeDir.path}\\goodbyedpi\\goodbyedpi.exe";
-                    args.add(blacklistPath);
-
-                    _process = await Process.start(
-                        dpiPath,
-                        args,
-                        mode: ProcessStartMode.normal);
+                  if (isRunning) {
+                    controller.startgDPI();
                     text = "ON";
                     setState(() {});
                   } else {
                     // Kill gDPI process
-                    if (_process != null) {
-                      _process!.kill();
-                      _process = null;
-                    }
-                    // Kill WinDivert driver
-                    try {
-                      ProcessResult result =
-                          await Process.run("sc", ["stop", "WinDivert1.4"]);
-
-                      if (result.exitCode == 0) {
-                        debugPrint("Service stopped successfully");
-                      } else {
-                        debugPrint(
-                            "Error on service stopping: ${result.stderr}");
-                      }
-                    } catch (e) {
-                      debugPrint("Error: $e");
-                    }
+                    controller.killgDPI();
                     text = "OFF";
                     setState(() {});
                   }
@@ -128,22 +125,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Future<void> dispose() async {
     // Kill gDPI process
-    if (_process != null) {
-      _process!.kill();
-      _process = null;
-    }
-    // Kill gDPI Driver
-    try {
-      ProcessResult result = await Process.run("sc", ["stop", "WinDivert1.4"]);
-
-      if (result.exitCode == 0) {
-        debugPrint("Service stopped successfully");
-      } else {
-        debugPrint("Error on service stopping: ${result.stderr}");
-      }
-    } catch (e) {
-      debugPrint("Error: $e");
-    }
+    controller.killgDPI();
 
     super.dispose();
   }
