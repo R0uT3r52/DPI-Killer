@@ -11,4 +11,4 @@ Simple [goodbyedpi](https://github.com/ValdikSS/GoodbyeDPI "Official goodbyedpi 
 1. Download portable version from the **Releases**
 2. Unpack
 3. Start **dpi_gui.exe**
-4. If program doesnt work properly you can download another version of [program](https://github.com/ValdikSS/GoodbyeDPI/releases) and place it into the **gdpi** folder
+4. If program doesnt work properly you can download another version of [program](https://github.com/ValdikSS/GoodbyeDPI/releases) and place it into the **gdpi** folder (don't forget to put WinDivert files)
