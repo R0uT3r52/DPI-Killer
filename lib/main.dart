@@ -5,15 +5,13 @@ import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:flutter/material.dart';
 
-
 gDPI_controller controller = gDPI_controller();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Must add this line.
   await windowManager.ensureInitialized();
 
-  WindowOptions windowOptions = const WindowOptions(
+  const windowOptions = WindowOptions(
     size: Size(400, 400),
     center: true,
     backgroundColor: Colors.transparent,
@@ -21,8 +19,9 @@ void main() async {
     titleBarStyle: TitleBarStyle.normal,
     maximumSize: Size(800, 1200),
     minimumSize: Size(200, 200),
-    title: "DPI Killer"
+    title: "DPI Killer",
   );
+  
   windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
@@ -42,39 +41,33 @@ Future<void> setupTray() async {
       await windowManager.show();
       await windowManager.focus();
     }),
-    // MenuItem.separator(),
-    // MenuItem.checkbox(key: "enable", label: "Disabled", checked: isRunning,),
     MenuItem.separator(),
     MenuItem(key: "exit", label: 'Close'),
   ]);
 
+  await trayManager.setToolTip("DPI Killer");
   await trayManager.setContextMenu(menu);
 
-  // Регистрация слушателя событий трея
   trayManager.addListener(TrayController());
-
-  // Скрытие окна при сворачивании
   windowManager.addListener(WindowController());
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DPI Killer',
-       theme: ThemeData(
+      theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurpleAccent, brightness: Brightness.light),
         switchTheme: const SwitchThemeData(splashRadius: 0),
-        cardTheme: const CardTheme(color: Colors.deepPurpleAccent)
-        ),
+        cardTheme: const CardTheme(color: Colors.deepPurpleAccent),
+      ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurpleAccent, brightness: Brightness.dark),
-        switchTheme: const SwitchThemeData(splashRadius: 0)
-        ),
+        switchTheme: const SwitchThemeData(splashRadius: 0),
+      ),
       themeMode: ThemeMode.dark,
       home: const MyHomePage(title: 'DPI Killer'),
     );
@@ -90,53 +83,26 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  //Process? _process;
-  String text = "OFF";
+  String statusText = "OFF";
   Color _iconColor = Colors.red;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DPI Killer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 23)),
-        
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             SwitchListTile(
-                title: Text(text),
-                hoverColor: Colors.transparent,
-                secondary: Icon(Icons.power_settings_new_sharp, color: _iconColor,),
-                value: isRunning,
-                onChanged: (bool value) async {
-                  setState(() {
-                    isRunning = value;
-                    debugPrint("$isRunning $value");
-                  });
-
-                  if (isRunning) {
-                    try{
-                      _iconColor = Colors.green;
-                      text = "ON";
-                      await controller.startgDPI(context);
-                    }
-                    catch(e){
-                      // ignore: use_build_context_synchronously
-                      controller.showErrorDialog(context, "Program not found", "Program \"goodbyedpi.exe\" not found. Please check \"gdpi\" folder.");
-                      isRunning = false;
-                      value = false;
-                      _iconColor = Colors.red;
-                      text = "OFF";
-                    }
-                    //setState(() {});
-                  } else {
-                    _iconColor = Colors.red;
-                    text = "OFF";
-                    await controller.killgDPI();
-                    //setState(() {});
-                  }
-                }),
+              title: Text(statusText),
+              hoverColor: Colors.transparent,
+              secondary: Icon(Icons.power_settings_new_sharp, color: _iconColor),
+              value: isRunning,
+              onChanged: _toggleSwitch,
+            ),
             Expanded(child: CheckBoxList(settings: cfg.settings_as_arg)),
           ],
         ),
@@ -144,11 +110,33 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void _toggleSwitch(bool value) async {
+    setState(() {
+      isRunning = value;
+      statusText = isRunning ? "ON" : "OFF";
+      _iconColor = isRunning ? Colors.green : Colors.red;
+    });
+
+    if (isRunning) {
+      try {
+        await controller.startgDPI(context);
+      } catch (e) {
+        controller.showErrorDialog(context, "Program not found", "Program \"goodbyedpi.exe\" not found. Please check \"gdpi\" folder.");
+        setState(() {
+          isRunning = false;
+          statusText = "OFF";
+          _iconColor = Colors.red;
+        });
+      }
+    } else {
+      await controller.killgDPI();
+    }
+  }
+
   @override
   Future<void> dispose() async {
-    // Kill gDPI process
-    controller.killgDPI();
-
+    await controller.killgDPI();
+    await TrayManager.instance.destroy();
     super.dispose();
   }
 }

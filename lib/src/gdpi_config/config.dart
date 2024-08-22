@@ -1,7 +1,5 @@
 // gDPI config
 
-String blacklist = "russia-youtube.txt";
-
 // not clear namings, so check the default gDPI repo
 
 // ADD (UPD: who tf needs that???): 

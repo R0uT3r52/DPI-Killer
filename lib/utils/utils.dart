@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'package:windows_notification/notification_message.dart';
+
 import '../src/gdpi_config/config.dart' as cfg;
+import 'package:windows_notification/windows_notification.dart';
 import 'package:dpi_gui/main.dart';
 import 'package:flutter/services.dart';
 import 'package:tray_manager/tray_manager.dart';
@@ -14,7 +17,7 @@ class gDPI_controller {
   Future <void> startgDPI(BuildContext context) async {
     List<String> args = [];
     final exeDir = File(Platform.resolvedExecutable).parent;
-    final blacklistPath = "${exeDir.path}\\gdpi\\russia-youtube.txt";
+    final blacklistPath = "${exeDir.path}\\gdpi\\blacklist.txt";
     final dpiPath = "${exeDir.path}\\gdpi\\goodbyedpi.exe";
 
     for (int i = 0; i < cfg.settings_as_arg.length; i++) {
@@ -85,6 +88,7 @@ class TrayController extends TrayListener {
     } else if (menuItem.key == "exit") {
       controller.killgDPI();
       windowManager.destroy();
+      trayManager.destroy();
       SystemChannels.platform.invokeMethod('SystemNavigator.pop');
     } 
   }
@@ -102,15 +106,33 @@ class TrayController extends TrayListener {
 }
 
 class WindowController extends WindowListener {
+
+  void showNotification(){
+    final _winNotifyPlugin = WindowsNotification(applicationId: "DPI Killer"); // idk why it wants appId, but I can place anything
+    final exeDir = File(Platform.resolvedExecutable).parent;
+    _winNotifyPlugin.clearNotificationHistory(); // Don't spawn a lot of notifications
+
+    NotificationMessage message = NotificationMessage.fromPluginTemplate(
+        "DPI Killer", // idk what is this
+        "Application minimized",
+        "DPI Killer minimized to system tray",
+        image: "${exeDir.path}\\data\\appNotifyIcon.png"
+    );
+    _winNotifyPlugin.showNotificationPluginTemplate(message);
+  }
+
+
   @override
   void onWindowClose() {
     controller.killgDPI();
+    trayManager.destroy();
     windowManager.destroy();
   }
   @override
   void onWindowEvent(String eventName) async {
     if (eventName == "minimize") {
       await windowManager.hide();
+      showNotification();
     }
   }
 }
